@@ -23,7 +23,7 @@ public class DieState_Character : I_State<PlayerStateTools>
 
     public void Excute()
     {
-
+        //도움 대기
     }
 
     public async UniTask Exit()

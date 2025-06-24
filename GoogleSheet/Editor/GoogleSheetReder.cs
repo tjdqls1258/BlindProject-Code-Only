@@ -6,6 +6,7 @@ using Google.Apis.Sheets.v4.Data;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using UnityEditor;
@@ -14,6 +15,15 @@ using UnityEngine.Events;
 
 public class GoogleSheetReder : EditorWindow
 {
+    public class GenreClass<T> where T : ScriptableObject, IUpdateDataFormSheet, new()
+    {
+        public void CreateFunc(List<string> datas, string path)
+        {
+            UpdateDataFormSheet.CreateData<T>(datas, path);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+    }
     private static readonly string ClientName = "user";
     private static readonly string dataPath = $"{UnityEngine.Application.dataPath.Replace("Assets", "")}client_secret_633291316510-ao56irbicvfhrm2m9n1k0scean980ufl.apps.googleusercontent.com.json";
 
@@ -58,16 +68,16 @@ public class GoogleSheetReder : EditorWindow
         callback.Invoke(value.Values);
     }
 
-    private static string CreateService_CSV(SheetsService service, string sheetName, string spreadSheetID)
+    private static string CreateService_CSV(SheetsService service, CSVData csvdata)
     {
         ValueRange value;
         try
         {
-            value = service.Spreadsheets.Values.Get(spreadSheetID, sheetName).Execute();
+            value = service.Spreadsheets.Values.Get(csvdata.SheetID, csvdata.SheetName).Execute();
         }
         catch (Exception ex)
         {
-            Debug.LogError($"{sheetName} request Error : {ex.Message}");
+            Debug.LogError($"{csvdata.SheetName} request Error : {ex.Message}");
             return "";
         }
 
@@ -119,13 +129,48 @@ public class GoogleSheetReder : EditorWindow
             }
         }
         Debug.Log(csvInfo);
+        string[] csvList = csvInfo.ToString().Split("\n");
+        foreach (string str in csvList) 
+        {
+            MakeScriptable(csvdata, str.Split(",").ToList());
+        }
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
         return csvInfo.ToString();
+    }
+
+    protected static void MakeScriptable(CSVData data, List<string> csvInfo)
+    {
+        Type dataType = GetTypeFromAssemblies(data.ClassName);
+        Type genreClass = typeof(GenreClass<>);
+
+        if (genreClass == null || dataType == null)
+        {
+            Debug.LogError("Type Null");
+            return;
+        }
+
+        Type genericProgramType = genreClass.MakeGenericType(new Type[] { dataType });
+        object value = Activator.CreateInstance(genericProgramType);
+
+        object[] args = { csvInfo, SaveScriptableDataPath };
+        genericProgramType.GetMethod("CreateFunc")?.Invoke(value, args);
+    }
+
+    protected void SheetDataMaker<Data>(string csvInfo) where Data : ScriptableObject, IUpdateDataFormSheet, new()
+    {
+        List<string> datas = csvInfo.Split("\n").ToList();
+        foreach (string s in datas)
+        {
+            UpdateDataFormSheet.CreateData<Data>(s.Split("\n").ToList(), SaveScriptableDataPath);
+        }
     }
 
     #region Window
 
     private static string CSVSettingPath = $"{UnityEngine.Application.dataPath}/GoogleSheet/Editor/CSVSettingJson.json";
     private static string CSVSavePath = $"{UnityEngine.Application.dataPath}/GoogleSheet/CSVData/{{0}}.csv";
+    private static string SaveScriptableDataPath = $"Assets/GoogleSheet/ScriptableObject";
     private static List<CSVData> CSVDataList = new();
     private static List<bool> toggleList = new();
     private Vector2 scrollPos = Vector2.zero;
@@ -135,6 +180,7 @@ public class GoogleSheetReder : EditorWindow
         public string Name;
         public string SheetName;
         public string SheetID;
+        public string ClassName;
     }
 
     [MenuItem("Tools/CSV Loader")]
@@ -155,6 +201,7 @@ public class GoogleSheetReder : EditorWindow
             CSVDataList[i].Name = EditorGUILayout.TextField("Name", CSVDataList[i].Name);
             CSVDataList[i].SheetID = EditorGUILayout.TextField("Sheet ID", CSVDataList[i].SheetID);
             CSVDataList[i].SheetName = EditorGUILayout.TextField("Sheet Name", CSVDataList[i].SheetName);
+            CSVDataList[i].ClassName = EditorGUILayout.TextField("ClassName", CSVDataList[i].ClassName);
             EditorGUILayout.EndToggleGroup();
             if (GUILayout.Button("Remove"))
             {
@@ -180,8 +227,7 @@ public class GoogleSheetReder : EditorWindow
                 if (toggleList[i])
                 {
                     string csvData = CreateService_CSV(service, 
-                        CSVDataList[i].SheetName, 
-                        CSVDataList[i].SheetID);
+                        CSVDataList[i]);
 
                     File.WriteAllText(string.Format(CSVSavePath, CSVDataList[i].Name), csvData);
                     SaveSetting();
@@ -230,6 +276,31 @@ public class GoogleSheetReder : EditorWindow
     {
         string data = Newtonsoft.Json.JsonConvert.SerializeObject(CSVDataList);
         File.WriteAllText(CSVSettingPath, data);
+    }
+    #endregion
+
+    #region Util
+    public static Type GetTypeFromAssemblies(string TypeName)
+    {
+        var type = Type.GetType(TypeName);
+        if (type != null)
+            return type;
+
+        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+        var referencedAssemblies = currentAssembly.GetReferencedAssemblies();
+        foreach (var assemblyName in referencedAssemblies)
+        {
+            var assembly = System.Reflection.Assembly.Load(assemblyName);
+            if (assembly != null)
+            {
+                type = assembly.GetType(TypeName);
+                if (type != null)
+                    return type;
+            }
+        }
+
+        Debug.LogError($"Can't Find Type Check TypeName {TypeName}");
+        return null;
     }
     #endregion
 

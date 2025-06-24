@@ -26,6 +26,8 @@ public class MonoSingleton<T> : MonoBehaviour where T : MonoBehaviour
 
     protected virtual void Awake() 
     {
+        if (_instance == null)
+            _instance = gameObject.GetComponent<T>();
         Init();
     }
 }

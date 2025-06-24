@@ -11,6 +11,7 @@ public class PlayerStateTools
 {
     public NavMeshAgent m_agent;
     public InteractionController m_interaction;
+    public InGamePlayerUIManager m_playerUIManager;
     public Camera m_characterCamera;
     public Transform m_characterTransform;
     public Transform m_characterHeadPos;
@@ -21,6 +22,7 @@ public class PlayerStateTools
     public float m_turnSpeed;
     public float m_xRotate;
     public float m_moveSpeed;
+    public float m_stamina;
     public Vector2 m_rotateMinMax;
     public Vector2 dir;
 }
@@ -30,6 +32,7 @@ public class MoveableState_Character : MonoBehaviour ,I_State<PlayerStateTools>
     private Transform m_characterHeadPos;
     private bool m_isMine = true;
     private Animator m_animator;
+    private bool m_run = false;
 
     public bool CheckExit()
     {
@@ -38,12 +41,14 @@ public class MoveableState_Character : MonoBehaviour ,I_State<PlayerStateTools>
 
     public async UniTask Enter()
     {
-        
+        playerStateTools.m_stamina = 100f;
     }
 
     public void Excute()
     {
-        if(m_isMine)
+        playerStateTools.m_playerUIManager.Run(playerStateTools.m_stamina);
+
+        if (m_isMine)
             Move_Do(playerStateTools.dir, playerStateTools.m_characterTransform.rotation);
     }
 
@@ -104,10 +109,20 @@ public class MoveableState_Character : MonoBehaviour ,I_State<PlayerStateTools>
         {
             playerStateTools.m_animator.SetFloat("MoveF", 0);
             playerStateTools.m_animator.SetFloat("MoveL", 0);
+            m_run = false;
+
+            if (playerStateTools.m_stamina > 100f)
+                playerStateTools.m_stamina = 100f;
+            else
+                playerStateTools.m_stamina += Time.deltaTime * 10;
+
             return;
         }
-        else if (Input.GetKey(KeyCode.LeftShift))
+        else if (Input.GetKey(KeyCode.LeftShift) && playerStateTools.m_stamina > 0)
         {
+            m_run = true;
+            playerStateTools.m_stamina -= Time.deltaTime * 10;
+
             if (dir.y != 0)
                 playerStateTools.m_animator.SetFloat("MoveF", dir.y > 0 ? 1f : -1f);
             else playerStateTools.m_animator.SetFloat("MoveF", 0);
@@ -121,6 +136,14 @@ public class MoveableState_Character : MonoBehaviour ,I_State<PlayerStateTools>
         }
         else
         {
+            if (m_run && Input.GetKey(KeyCode.LeftShift) == false)
+            {
+                if (playerStateTools.m_stamina > 100f)
+                    playerStateTools.m_stamina = 100f;
+                else
+                    playerStateTools.m_stamina += Time.deltaTime * 10;
+            }
+
             if (dir.y != 0)
                 playerStateTools.m_animator.SetFloat("MoveF", dir.y > 0 ? 0.5f : -0.5f);
             else playerStateTools.m_animator.SetFloat("MoveF", 0);

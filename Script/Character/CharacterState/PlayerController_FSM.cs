@@ -34,12 +34,4 @@ public class PlayerController_FSM : MonoBehaviour
         statetool.m_agent.enabled = false;
         GetComponent<Collider>().enabled = false;
     }
-
-    //public void OnMove(InputValue Move)
-    //{
-    //    if (statetool.m_playerDie) return;
-
-    //    statetool.dir = Move.Get<Vector2>();
-    //    statetool.dir = statetool.dir.normalized;
-    //}
 }

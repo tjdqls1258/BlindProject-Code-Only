@@ -72,6 +72,7 @@ public class SonarManager : MonoSingleton<SonarManager>
 
     protected override void Init()
     {
+        base.Init();
         GenerateMaskTexture();
 
         edgeDetectionFeature.maskTexture = maskTexture;

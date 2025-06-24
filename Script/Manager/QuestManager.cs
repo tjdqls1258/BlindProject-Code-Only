@@ -14,6 +14,7 @@ public class QuestManager : Singleton<QuestManager>
 
     public override void Init()
     {
+        base.Init();
         _questsAll.Clear();
         _endQuest.Clear();
         _currentQuests.Clear();
@@ -48,13 +49,15 @@ public class QuestManager : Singleton<QuestManager>
 
         if (quest != null && quest.Count > 0)
         {
-            foreach (var q in quest)
+            for(int i = _currentQuests.Count-1; i >= 0;i--)
             {
-                q.AddCount(Addcount);
-                if (q.CheckQuestDone())
+                if (_currentQuests[i].questKind == kind && _currentQuests[i].questDetail == detail)
+                    _currentQuests[i].AddCount(Addcount);
+
+                if (_currentQuests[i].CheckQuestDone())
                 {
-                    QuestDoneAction(q.id);
-                    AddNextQuest(q.nextQuestID);
+                    QuestDoneAction(_currentQuests[i].id);
+                    AddNextQuest(_currentQuests[i].nextQuestID);
                 }
             }
         }
@@ -139,5 +142,20 @@ public class QuestManager : Singleton<QuestManager>
 
 
         return desc;
+    }
+
+    public bool CheckClearGuestAll()
+    {
+        bool isClear = true;
+        foreach (Quest quest in _currentQuests)
+        {
+            if (quest.CheckQuestDone() == false)
+            {
+                isClear = false;
+                break;
+            }
+
+        }
+        return isClear;
     }
 }
